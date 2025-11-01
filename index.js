@@ -228,10 +228,13 @@ async function checkToken(req) {
         console.log('generating new access token');
         let dsApiClient = new docusign.ApiClient();
         dsApiClient.setBasePath(process.env.BASE_PATH);
+        const privateKey = process.env.PRIVATE_KEY_PATH.includes('BEGIN RSA PRIVATE KEY')
+  ? process.env.PRIVATE_KEY_PATH
+  : fs.readFileSync(process.env.PRIVATE_KEY_PATH, 'utf8');
         const results = await dsApiClient.requestJWTUserToken
         (process.env.INTEGRATION_KEY, process.env.userId, 'signature',
             // fs.readFileSync(path.join(__dirname, 'private.key')), 3600);
-            fs.readFileSync(process.env.PRIVATE_KEY_PATH), 3600);
+            privateKey, 3600);
 
         console.log('Token:', results.body.access_token);
         req.session.accessToken = results.body.access_token;

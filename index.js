@@ -1,4 +1,4 @@
-const express =require('express');
+const express = require('express');
 const app = express();
 const path = require('path')
 const bodyParser = require('body-parser');
@@ -11,19 +11,19 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const axios = require('axios');
 mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
 })
-.then(() => console.log('✅ MongoDB connected successfully'))
-.catch((err) => console.error('❌ MongoDB connection failed:', err));
+    .then(() => console.log('✅ MongoDB connected successfully'))
+    .catch((err) => console.error('❌ MongoDB connection failed:', err));
 
 const agreementSchema = new mongoose.Schema({
-  name: String,
-  email: String,
-  company: String,
-  status: { type: String, default: 'Sent' },
-  envelopeId: String,
-  createdAt: { type: Date, default: Date.now }
+    name: String,
+    email: String,
+    company: String,
+    status: { type: String, default: 'Sent' },
+    envelopeId: String,
+    createdAt: { type: Date, default: Date.now }
 });
 
 const Agreement = mongoose.model('Agreement', agreementSchema);
@@ -33,151 +33,153 @@ app.use(session({
     resave: true,
     saveUninitialized: true
 }));
-app.use(cors({ origin: '*' })); 
+app.use(cors({ origin: '*' }));
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-app.post('/form', async (request, response) => {    
+app.post('/form', async (request, response) => {
     console.log('Form Data Received:', request.body);
     await checkToken(request);
-   let envelopesApi = getEnvelopesApi(request);
-   let envelope = makeEnvelope(request.body.name, request.body.email, request.body.company);
+    let envelopesApi = getEnvelopesApi(request);
+    let envelope = makeEnvelope(request.body.name, request.body.email, request.body.company);
 
-   let results = await envelopesApi.createEnvelope(
-       process.env.ACCOUNT_ID, {envelopeDefinition: envelope});
-   console.log("envelope results ", results);
+    let results = await envelopesApi.createEnvelope(
+        process.env.ACCOUNT_ID, { envelopeDefinition: envelope });
+    console.log("envelope results ", results);
 
-        // Save to MongoDB
+    // Save to MongoDB
     const newAgreement = new Agreement({
-      name: request.body.name,
-      email: request.body.email,
-      company: request.body.company,
-      envelopeId: results.envelopeId,
-      status: 'Sent'
+        name: request.body.name,
+        email: request.body.email,
+        company: request.body.company,
+        envelopeId: results.envelopeId,
+        status: 'Sent'
     });
     await newAgreement.save();
 
-// Create the recipient view, the Signing Ceremony
-   let viewRequest = makeRecipientViewRequest(request.body.name, request.body.email);
-   results = await envelopesApi.createRecipientView(process.env.ACCOUNT_ID, results.envelopeId,
-       {recipientViewRequest: viewRequest});
+    // Create the recipient view, the Signing Ceremony
+    let viewRequest = makeRecipientViewRequest(request.body.name, request.body.email);
+    results = await envelopesApi.createRecipientView(process.env.ACCOUNT_ID, results.envelopeId,
+        { recipientViewRequest: viewRequest });
     // response.redirect(results.url);
     response.json({ url: results.url });
 
 });
 
 app.get('/agreements', async (req, res) => {
-  try {
-    // This is sample data — later, you can fetch from DB
-    // const agreements = [
-    //   { id: 1, name: 'John Doe', email: 'john@example.com', company: 'Acme Inc', status: 'Sent' },
-    //   { id: 2, name: 'Jane Smith', email: 'jane@example.com', company: 'TechCorp', status: 'Completed' },
-    // ];
+    try {
+        // This is sample data — later, you can fetch from DB
+        // const agreements = [
+        //   { id: 1, name: 'John Doe', email: 'john@example.com', company: 'Acme Inc', status: 'Sent' },
+        //   { id: 2, name: 'Jane Smith', email: 'jane@example.com', company: 'TechCorp', status: 'Completed' },
+        // ];
 
-    const agreements = await Agreement.find().sort({ createdAt: -1 });
-    res.json(agreements);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to fetch agreements' });
-  }
+        const agreements = await Agreement.find().sort({ createdAt: -1 });
+        res.json(agreements);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to fetch agreements' });
+    }
 });
 
 app.get('/agreements/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const agreement = await Agreement.findById(id);
-    if (!agreement) return res.status(404).json({ error: 'Agreement not found' });
-    res.json(agreement);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch agreement' });
-  }
+    try {
+        const { id } = req.params;
+        const agreement = await Agreement.findById(id);
+        if (!agreement) return res.status(404).json({ error: 'Agreement not found' });
+        res.json(agreement);
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch agreement' });
+    }
 });
 
 app.get('/view-signed/:envelopeId', async (req, res) => {
-  try {
-    // ✅ Ensure you have a valid token
-    await checkToken(req);
+    try {
+        // ✅ Ensure you have a valid token
+        await checkToken(req);
 
-    const dsApiClient = new docusign.ApiClient();
-    dsApiClient.setBasePath(process.env.BASE_PATH);
-    dsApiClient.addDefaultHeader('Authorization', 'Bearer ' + req.session.accessToken);
+        const dsApiClient = new docusign.ApiClient();
+        dsApiClient.setBasePath(process.env.BASE_PATH);
+        dsApiClient.addDefaultHeader('Authorization', 'Bearer ' + req.session.accessToken);
 
-    const envelopesApi = new docusign.EnvelopesApi(dsApiClient);
-    const envelopeId = req.params.envelopeId;
+        const envelopesApi = new docusign.EnvelopesApi(dsApiClient);
+        const envelopeId = req.params.envelopeId;
 
-    // ✅ Get the signed document (usually documentId = "1")
-    const results = await envelopesApi.getDocument(process.env.ACCOUNT_ID, envelopeId, "1", null);
+        // ✅ Get the signed document (usually documentId = "1")
+        const results = await envelopesApi.getDocument(process.env.ACCOUNT_ID, envelopeId, "1", null);
 
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'inline; filename="signed_agreement.pdf"');
-    res.send(Buffer.from(results, 'binary'));
-  } catch (err) {
-    console.error('❌ Error fetching signed doc:', err.body || err);
-    res.status(500).json({ error: 'Failed to fetch signed document', details: err.body });
-  }
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'inline; filename="signed_agreement.pdf"');
+        res.send(Buffer.from(results, 'binary'));
+    } catch (err) {
+        console.error('❌ Error fetching signed doc:', err.body || err);
+        res.status(500).json({ error: 'Failed to fetch signed document', details: err.body });
+    }
 });
 
 // Download PDF
 app.get('/download-signed/:envelopeId', async (req, res) => {
-  try {
-    await checkToken(req);
-    const dsApiClient = new docusign.ApiClient();
-    dsApiClient.setBasePath(process.env.BASE_PATH);
-    dsApiClient.addDefaultHeader('Authorization', 'Bearer ' + req.session.accessToken);
+    try {
+        await checkToken(req);
+        const dsApiClient = new docusign.ApiClient();
+        dsApiClient.setBasePath(process.env.BASE_PATH);
+        dsApiClient.addDefaultHeader('Authorization', 'Bearer ' + req.session.accessToken);
 
-    const envelopesApi = new docusign.EnvelopesApi(dsApiClient);
-    const results = await envelopesApi.getDocument(process.env.ACCOUNT_ID, req.params.envelopeId, "1", null);
+        const envelopesApi = new docusign.EnvelopesApi(dsApiClient);
+        const results = await envelopesApi.getDocument(process.env.ACCOUNT_ID, req.params.envelopeId, "1", null);
 
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename="signed_agreement.pdf"');
-    res.send(Buffer.from(results, 'binary'));
-  } catch (err) {
-    console.error('❌ Error downloading signed doc:', err.body || err);
-    res.status(500).json({ error: 'Failed to download signed document' });
-  }
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'attachment; filename="signed_agreement.pdf"');
+        res.send(Buffer.from(results, 'binary'));
+    } catch (err) {
+        console.error('❌ Error downloading signed doc:', err.body || err);
+        res.status(500).json({ error: 'Failed to download signed document' });
+    }
 });
 
 
 
 function makeRecipientViewRequest(name, email) {
 
-   let viewRequest = new docusign.RecipientViewRequest();
+    let viewRequest = new docusign.RecipientViewRequest();
 
-   viewRequest.returnUrl = "http://localhost:8000/success";
-   viewRequest.authenticationMethod = 'none';
+    viewRequest.returnUrl = "http://localhost:8000/success";
+    viewRequest.authenticationMethod = 'none';
 
-   // Recipient information must match embedded recipient info
-   // we used to create the envelope.
-   viewRequest.email = email;
-   viewRequest.userName = name;
-   viewRequest.clientUserId = process.env.CLIENT_USER_ID;
+    // Recipient information must match embedded recipient info
+    // we used to create the envelope.
+    viewRequest.email = email;
+    viewRequest.userName = name;
+    viewRequest.clientUserId = process.env.CLIENT_USER_ID;
 
-   return viewRequest
+    return viewRequest
 }
 
-function makeEnvelope(name, email, company){
-   let env = new docusign.EnvelopeDefinition();
-   env.templateId = process.env.TEMPLATE_ID;
-   let text = docusign.Text.constructFromObject({
-      tabLabel: "company_name", value: company});
+function makeEnvelope(name, email, company) {
+    let env = new docusign.EnvelopeDefinition();
+    env.templateId = process.env.TEMPLATE_ID;
+    let text = docusign.Text.constructFromObject({
+        tabLabel: "company_name", value: company
+    });
 
-   // Pull together the existing and new tabs in a Tabs object:
-   let tabs = docusign.Tabs.constructFromObject({
-      textTabs: [text],
-   });
+    // Pull together the existing and new tabs in a Tabs object:
+    let tabs = docusign.Tabs.constructFromObject({
+        textTabs: [text],
+    });
 
-   let signer1 = docusign.TemplateRole.constructFromObject({
-      email: email,
-      name: name,
-      tabs: tabs,
-      clientUserId: process.env.CLIENT_USER_ID,
-      roleName: 'Applicant'});
+    let signer1 = docusign.TemplateRole.constructFromObject({
+        email: email,
+        name: name,
+        tabs: tabs,
+        clientUserId: process.env.CLIENT_USER_ID,
+        roleName: 'Applicant'
+    });
 
-   env.templateRoles = [signer1];
-   env.status = "sent";
+    env.templateRoles = [signer1];
+    env.status = "sent";
 
-   return env;
+    return env;
 }
 
 /**
@@ -189,13 +191,13 @@ function makeEnvelope(name, email, company){
  */
 
 function document1(args) {
-  // Data for this method
-  // args.signerEmail
-  // args.signerName
-  // args.ccEmail
-  // args.ccName
+    // Data for this method
+    // args.signerEmail
+    // args.signerName
+    // args.ccEmail
+    // args.ccName
 
-  return `
+    return `
     <!DOCTYPE html>
     <html>
         <head>
@@ -230,24 +232,34 @@ async function checkToken(req) {
         dsApiClient.setBasePath(process.env.BASE_PATH);
         let privateKey;
 
-  // ✅ Detect whether PRIVATE_KEY_PATH is an inline key or a file path
-  if (
-    process.env.PRIVATE_KEY_PATH.startsWith('-----BEGIN') ||
-    process.env.PRIVATE_KEY_PATH.includes('MII')
-  ) {
-    console.log('Using inline private key from environment variable');
-    privateKey = process.env.PRIVATE_KEY_PATH;
-  } else {
-    console.log('Reading private key from file path:', process.env.PRIVATE_KEY_PATH);
-    privateKey = fs.readFileSync(path.resolve(process.env.PRIVATE_KEY_PATH), 'utf8');
-  }
-        console.log('Token:');
-        req.session.accessToken = results.body.access_token;
+        // ✅ Detect whether PRIVATE_KEY_PATH is an inline key or a file path
+        if (
+            process.env.PRIVATE_KEY_PATH.startsWith('-----BEGIN') ||
+            process.env.PRIVATE_KEY_PATH.includes('MII')
+        ) {
+            console.log('Using inline private key from environment variable');
+            privateKey = process.env.PRIVATE_KEY_PATH;
+        } else {
+            console.log('Reading private key from file path:', process.env.PRIVATE_KEY_PATH);
+            privateKey = fs.readFileSync(path.resolve(process.env.PRIVATE_KEY_PATH), 'utf8');
+        }
+        // ✅ Generate JWT token
+        const results = await dsApiClient.requestJWTUserToken(
+            process.env.INTEGRATION_KEY,
+            process.env.USER_ID,
+            'signature',
+            privateKey,
+            3600
+        );
+        const accessToken = results.body.access_token;
+        req.session.accessToken = accessToken;
         req.session.expires_at = Date.now() + (results.body.expires_in - 60) * 1000;
+        console.log('✅ Access token generated successfully');
+        return accessToken;
     }
 }
 
-function getEnvelopesApi(request){
+function getEnvelopesApi(request) {
     let dsApiClient = new docusign.ApiClient();
     dsApiClient.setBasePath(process.env.BASE_PATH);
     dsApiClient.addDefaultHeader('Authorization', 'Bearer ' + request.session.accessToken);

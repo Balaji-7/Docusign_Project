@@ -241,7 +241,7 @@ async function checkToken(req) {
     console.log('Reading private key from file path:', process.env.PRIVATE_KEY_PATH);
     privateKey = fs.readFileSync(path.resolve(process.env.PRIVATE_KEY_PATH), 'utf8');
   }
-        console.log('Token:', results.body.access_token);
+        console.log('Token:');
         req.session.accessToken = results.body.access_token;
         req.session.expires_at = Date.now() + (results.body.expires_in - 60) * 1000;
     }

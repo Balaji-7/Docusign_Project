@@ -241,7 +241,7 @@ async function checkToken(req) {
     }
 
         const results = await dsApiClient.requestJWTUserToken
-        (process.env.INTEGRATION_KEY, process.env.userId, 'signature',
+        (process.env.INTEGRATION_KEY, process.env.USER_ID, 'signature',
             privateKey, 3600);
         console.log('Token:', results.body.access_token);
         req.session.accessToken = results.body.access_token;
@@ -268,7 +268,7 @@ app.get('/success', (request, response) => {
 });
 
 app.listen(8000, () => {
-    console.log('Server is running on http://localhost:8000', process.env.userId);
+    console.log('Server is running on http://localhost:8000', process.env.USER_ID);
 });
 
 

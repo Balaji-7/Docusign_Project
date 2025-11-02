@@ -230,9 +230,29 @@ async function checkToken(req) {
         console.log('generating new access token');
         let dsApiClient = new docusign.ApiClient();
         dsApiClient.setBasePath(process.env.BASE_PATH);
+        // const results = await dsApiClient.requestJWTUserToken
+        // (process.env.INTEGRATION_KEY, process.env.userId, 'signature',
+        //     fs.readFileSync(path.join(__dirname, 'private.key')), 3600);
+        let privateKey;
+        const keyPath = path.join(__dirname, 'private.key');
+        
+     if (process.env.DS_PRIVATE_KEY) {
+            privateKey = process.env.DS_PRIVATE_KEY;
+            console.log('Key loaded from DS_PRIVATE_KEY environment variable.');
+        } 
+        // 2. Fallback to file system (For local development ease)
+        else if (fs.existsSync(keyPath)) {
+            privateKey = fs.readFileSync(keyPath);
+            console.log('Key loaded from private.key file.');
+        } else {
+            // CRITICAL FAILURE - Can't authenticate
+            console.error('❌ FATAL: DocuSign Private Key not found! Check DS_PRIVATE_KEY variable or private.key file.');
+            throw new Error('DocuSign Private Key is missing or inaccessible.');
+        }
+
         const results = await dsApiClient.requestJWTUserToken
         (process.env.INTEGRATION_KEY, process.env.userId, 'signature',
-            fs.readFileSync(path.join(__dirname, 'private.key')), 3600);
+            privateKey, 3600);
 
         console.log('Token:', results.body.access_token);
         req.session.accessToken = results.body.access_token;

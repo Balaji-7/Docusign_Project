@@ -230,34 +230,16 @@ async function checkToken(req) {
         console.log('generating new access token');
         let dsApiClient = new docusign.ApiClient();
         dsApiClient.setBasePath(process.env.BASE_PATH);
-        let privateKey;
+        const results = await dsApiClient.requestJWTUserToken
+        (process.env.INTEGRATION_KEY, process.env.userId, 'signature',
+            fs.readFileSync(path.join(__dirname, 'private.key')), 3600);
 
-        // ✅ Detect whether PRIVATE_KEY_PATH is an inline key or a file path
-        if (
-            process.env.PRIVATE_KEY_PATH.startsWith('-----BEGIN') ||
-            process.env.PRIVATE_KEY_PATH.includes('MII')
-        ) {
-            console.log('Using inline private key from environment variable');
-            privateKey = process.env.PRIVATE_KEY_PATH;
-        } else {
-            console.log('Reading private key from file path:', process.env.PRIVATE_KEY_PATH);
-            privateKey = fs.readFileSync(path.resolve(process.env.PRIVATE_KEY_PATH), 'utf8');
-        }
-        // ✅ Generate JWT token
-        const results = await dsApiClient.requestJWTUserToken(
-            process.env.INTEGRATION_KEY,
-            process.env.USER_ID,
-            'signature',
-            privateKey,
-            3600
-        );
-        const accessToken = results.body.access_token;
-        req.session.accessToken = accessToken;
+        console.log('Token:', results.body.access_token);
+        req.session.accessToken = results.body.access_token;
         req.session.expires_at = Date.now() + (results.body.expires_in - 60) * 1000;
-        console.log('✅ Access token generated successfully');
-        return accessToken;
     }
 }
+
 
 function getEnvelopesApi(request) {
     let dsApiClient = new docusign.ApiClient();

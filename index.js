@@ -234,19 +234,32 @@ async function checkToken(req) {
         let privateKey;
     if (process.env.DS_PRIVATE_KEY) {
       console.log('✅ Key loaded from DS_PRIVATE_KEY environment variable.');
-      privateKey = Buffer.from(process.env.DS_PRIVATE_KEY, 'base64');
+      privateKey = Buffer.from(process.env.DS_PRIVATE_KEY, 'base64').toString('utf8');
     } else {
       console.log('✅ Key loaded from private.key file.');
       privateKey = fs.readFileSync(path.join(__dirname, 'private.key'));
     }
-
+try{
         const results = await dsApiClient.requestJWTUserToken
         (process.env.INTEGRATION_KEY, process.env.USER_ID, 'signature',
             privateKey, 3600);
         console.log('Token:', results.body.access_token);
         req.session.accessToken = results.body.access_token;
         req.session.expires_at = Date.now() + (results.body.expires_in - 60) * 1000;
+    }catch (error) {
+    console.error('❌ Error generating DocuSign access token:');
+
+    // 👇 Detailed diagnostic logging
+    if (error.response && error.response.data) {
+      console.error('Status:', error.response.status);
+      console.error('Response Data:', JSON.stringify(error.response.data, null, 2));
+    } else {
+      console.error(error.message);
     }
+
+    throw error; // rethrow to stop further execution if token fails
+  }
+}
 }
 
 function getEnvelopesApi(request) {

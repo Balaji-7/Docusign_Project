@@ -243,7 +243,7 @@ try{
         const results = await dsApiClient.requestJWTUserToken
         (process.env.INTEGRATION_KEY, process.env.USER_ID, 'signature',
             privateKey, 3600);
-        console.log('Token:', results.body.access_token);
+        console.log('Token Generated Successfully: ');
         req.session.accessToken = results.body.access_token;
         req.session.expires_at = Date.now() + (results.body.expires_in - 60) * 1000;
     }catch (error) {
@@ -280,9 +280,15 @@ app.get('/success', (request, response) => {
     response.send('Signing completed successfully! You can close this window.');
 });
 
-app.listen(8000, () => {
-    console.log('Server is running on http://localhost:8000', process.env.USER_ID);
+const PORT = process.env.PORT || 8000;
+
+app.listen(PORT, () => {
+  console.log(`✅ Server is running on http://localhost:${PORT}`);
 });
+
+// app.listen(8000, () => {
+//     console.log('Server is running on http://localhost:8000', process.env.USER_ID);
+// });
 
 
 //  https://account-d.docusign.com/oauth/auth?response_type=code&scope=signature%20impersonation&client_id=b7ebda26-21c5-442a-b8cb-c9fc27444ae4&redirect_uri=http://localhost:8000/
